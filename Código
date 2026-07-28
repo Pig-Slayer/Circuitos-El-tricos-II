@@ -1,0 +1,265 @@
+import cmath
+import math
+
+
+
+
+# 1: Simétrico/Equilibrado - Estrela (Y)
+# 2: Simétrico/Equilibrado - Triângulo (Delta) 
+# 3: Desequilibrado - Estrela Aterrada 
+# 4: Desequilibrado - Estrela Isolada 
+CASO = 4
+
+# --- ENTRADAS DE TENSÃO (Polar) 
+# Tensão de Fase (Van, Vbn, Vcn)
+Va_mag, Va_ang = 220, 0      
+Vb_mag, Vb_ang = 220, -120   
+Vc_mag, Vc_ang = 220, 120    
+
+
+ZA_real, ZA_imag = 20, 20
+ZB_real, ZB_imag = 50, 0
+ZC_real, ZC_imag = 40, -10
+
+# Impedância da Linha (ZP) 
+ZP_real, ZP_imag = 1, 1
+# Impedância Neutro
+ZN_real, ZN_imag = 0, 0 
+
+
+def polar_to_comp(mag, ang_deg):
+    """Converte polar (graus) para complexo retangular."""
+    ang_rad = math.radians(ang_deg)
+    return cmath.rect(mag, ang_rad)
+
+def comp_to_polar_str(c):
+    """Converte complexo para string formatada polar (graus)."""
+    mag, ang_rad = cmath.polar(c)
+    ang_deg = math.degrees(ang_rad)
+    return f"{mag:.4f} < {ang_deg:.2f}°"
+
+def calc_power(V, I):
+    """Calcula S, P, Q e FP dado V e I (complexos)."""
+    # S = V * I_conjugado
+    S_complex = V * I.conjugate()
+    P = S_complex.real
+    Q = S_complex.imag
+    S_apparent = abs(S_complex)
+    
+    # Fator de Potência (FP) = P / S_aparente
+    if S_apparent == 0:
+        FP = 0.0
+    else:
+        FP = P / S_apparent
+    
+    # Determina se é Indutivo ou Capacitivo
+    tipo = "Ind" if Q >= 0 else "Cap"
+    
+    return S_apparent, P, Q, FP, tipo
+
+# 1. Preparação dos Dados
+Va = polar_to_comp(Va_mag, Va_ang)
+Vb = polar_to_comp(Vb_mag, Vb_ang)
+Vc = polar_to_comp(Vc_mag, Vc_ang)
+
+ZA = complex(ZA_real, ZA_imag)
+ZB = complex(ZB_real, ZB_imag)
+ZC = complex(ZC_real, ZC_imag)
+ZP = complex(ZP_real, ZP_imag)
+ZN = complex(ZN_real, ZN_imag)
+
+print(f"--- RESULTADOS PARA O CASO {CASO} ---\n")
+
+
+if CASO == 1:
+    # Caso 1: Simétrico Equilibrado - Y 
+   
+    Z_total = ZA + ZP
+    
+    # Correntes de Linha (Fase = Linha no Y)
+    Ia = Va / Z_total
+    # Em sistema equilibrado, defasagem de 120 graus
+    Ib = Ia * polar_to_comp(1, -120)
+    Ic = Ia * polar_to_comp(1, 120)
+    
+    # Tensões de Fase na Carga (Van', Vbn', Vcn')
+    Van_carga = Ia * ZA
+    Vbn_carga = Ib * ZA
+    Vcn_carga = Ic * ZA
+    
+    # Tensões de Linha na Carga (Vab, Vbc, Vca)
+    Vab_carga = Van_carga - Vbn_carga
+    Vbc_carga = Vbn_carga - Vcn_carga
+    Vca_carga = Vcn_carga - Van_carga
+
+    # Saídas 
+    print(">> Tensões de Fase na Carga (Van, Vbn, Vcn):")
+    print(f"Van: {comp_to_polar_str(Van_carga)}")
+    print(f"Vbn: {comp_to_polar_str(Vbn_carga)}")
+    print(f"Vcn: {comp_to_polar_str(Vcn_carga)}")
+    
+    print("\n>> Tensões de Linha na Carga (Va'b', Vb'c', Vc'a'):")
+    print(f"Va'b': {comp_to_polar_str(Vab_carga)}")
+    print(f"Vb'c': {comp_to_polar_str(Vbc_carga)}")
+    print(f"Vc'a': {comp_to_polar_str(Vca_carga)}")
+    
+    print("\n>> Correntes de Linha (Ia, Ib, Ic):")
+    print(f"Ia: {comp_to_polar_str(Ia)}")
+    print(f"Ib: {comp_to_polar_str(Ib)}")
+    print(f"Ic: {comp_to_polar_str(Ic)}")
+
+elif CASO == 2:
+    # Caso 2: Simétrico Equilibrado - Delta
+    print(">> Método: Conversão Delta -> Estrela Equivalente para cálculo")
+
+    # 1. Converter Carga Delta para Estrela Equivalente (ZY = ZDelta / 3)
+    ZY_eq = ZA / 3 
+
+    # 2. Impedância Total por Fase (Linha + Carga Y equivalente)
+    Z_total_fase = ZP + ZY_eq
+
+    # 3. Correntes de Linha (Calculadas no equivalente Y)
+    Ia = Va / Z_total_fase
+    Ib = Vb / Z_total_fase
+    Ic = Vc / Z_total_fase
+
+    # 4. Tensões de Fase Fictícias na Carga (Van', Vbn', Vcn')
+    Van_carga = Ia * ZY_eq
+    Vbn_carga = Ib * ZY_eq
+    Vcn_carga = Ic * ZY_eq
+
+    # 5. Tensões de Linha REAIS na Carga (Vab', Vbc', Vca')
+    Vab_carga = Van_carga - Vbn_carga
+    Vbc_carga = Vbn_carga - Vcn_carga
+    Vca_carga = Vcn_carga - Van_carga
+
+    # 6. Correntes de Fase INTERNAS do Delta (Iab, Ibc, Ica)
+    Iab = Vab_carga / ZA
+    Ibc = Vbc_carga / ZB
+    Ica = Vca_carga / ZC
+
+    print("\n>> Correntes de Linha (Ia, Ib, Ic):")
+    print(f"Ia: {comp_to_polar_str(Ia)}")
+    print(f"Ib: {comp_to_polar_str(Ib)}")
+    print(f"Ic: {comp_to_polar_str(Ic)}")
+
+    print("\n>> Tensões de Linha na Carga (Va'b', Vb'c', Vc'a'):")
+    print(f"Va'b' (Carga): {comp_to_polar_str(Vab_carga)}")
+    print(f"Vb'c' (Carga): {comp_to_polar_str(Vbc_carga)}")
+    print(f"Vc'a' (Carga): {comp_to_polar_str(Vca_carga)}")
+
+    print("\n>> Correntes de Fase internas (Delta) (Iab, Ibc, Ica):")
+    print(f"Iab: {comp_to_polar_str(Iab)}")
+    print(f"Ibc: {comp_to_polar_str(Ibc)}")
+    print(f"Ica: {comp_to_polar_str(Ica)}")
+
+elif CASO == 3 or CASO == 4:
+    
+    # Cálculo das Admitâncias dos ramos (Linha + Carga)
+    Ya = 1 / (ZA + ZP)
+    Yb = 1 / (ZB + ZP)
+    Yc = 1 / (ZC + ZP)
+    
+    V_deslocamento_neutro = 0j # Inicialização
+    
+    if CASO == 3:
+        # Caso 3: Desequilibrado - Estrela Aterrada 
+        if ZN == 0:
+            # Neutro idealmente aterrado 
+            V_deslocamento_neutro = 0j
+        else:
+            # Neutro com impedância 
+            # Fórmula do deslocamento do neutro 
+            Yn = 1 / ZN
+            numerador = (Va * Ya) + (Vb * Yb) + (Vc * Yc)
+            denominador = Ya + Yb + Yc + Yn
+            V_deslocamento_neutro = numerador / denominador
+            
+    elif CASO == 4:
+        # Caso 4: Desequilibrado - Estrela Isolada 
+        
+        numerador = (Va * Ya) + (Vb * Yb) + (Vc * Yc)
+        denominador = Ya + Yb + Yc
+        # Vnn' 
+        V_deslocamento_neutro = numerador / denominador
+
+    # Cálculo das Correntes 
+    Ia = (Va - V_deslocamento_neutro) * Ya
+    Ib = (Vb - V_deslocamento_neutro) * Yb
+    Ic = (Vc - V_deslocamento_neutro) * Yc
+    
+    # Corrente de Neutro
+    In = Ia + Ib + Ic
+    
+    # Tensões na Carga (Vfase') = I * Zcarga 
+    Van_carga = Ia * ZA
+    Vbn_carga = Ib * ZB
+    Vcn_carga = Ic * ZC
+    
+    # Tensões de Linha na Carga 
+    Vab_carga = Van_carga - Vbn_carga
+    Vbc_carga = Vbn_carga - Vcn_carga
+    Vca_carga = Vcn_carga - Van_carga
+    
+    # --- SAÍDA ---
+    print(f">> Tensão de Deslocamento de Neutro (Vnn'): {comp_to_polar_str(V_deslocamento_neutro)}")
+    
+    print("\n>> Correntes de Linha (Ia, Ib, Ic, In):")
+    print(f"Ia: {comp_to_polar_str(Ia)}")
+    print(f"Ib: {comp_to_polar_str(Ib)}")
+    print(f"Ic: {comp_to_polar_str(Ic)}")
+    print(f"In (Retorno): {comp_to_polar_str(In)}")
+    
+    print("\n>> Tensões de Fase na Carga (Van, Vbn, Vcn):")
+    print(f"Van: {comp_to_polar_str(Van_carga)}")
+    print(f"Vbn: {comp_to_polar_str(Vbn_carga)}")
+    print(f"Vcn: {comp_to_polar_str(Vcn_carga)}")
+
+    print("\n>> Tensões de Linha na Carga (Va'b', Vb'c', Vc'a'):")
+    print(f"Va'b': {comp_to_polar_str(Vab_carga)}")
+    print(f"Vb'c': {comp_to_polar_str(Vbc_carga)}")
+    print(f"Vc'a': {comp_to_polar_str(Vca_carga)}")
+
+
+#   CÁLCULO DE POTÊNCIA 
+
+print("\n--- POTÊNCIA NA CARGA (Por Fase e Total) ---")
+
+if CASO == 2:
+    # No Delta: Tensão é de Linha (na Carga), Corrente é de Fase (interna)
+    V_A_calc, I_A_calc = Vab_carga, Iab
+    V_B_calc, I_B_calc = Vbc_carga, Ibc
+    V_C_calc, I_C_calc = Vca_carga, Ica
+else:
+    # No Y (Estrela): Tensão é de Fase (na Carga), Corrente é de Linha
+    V_A_calc, I_A_calc = Van_carga, Ia
+    V_B_calc, I_B_calc = Vbn_carga, Ib
+    V_C_calc, I_C_calc = Vcn_carga, Ic
+
+# Cálculo Fase a Fase
+Sa, Pa, Qa, FPa, TipoA = calc_power(V_A_calc, I_A_calc)
+Sb, Pb, Qb, FPb, TipoB = calc_power(V_B_calc, I_B_calc)
+Sc, Pc, Qc, FPc, TipoC = calc_power(V_C_calc, I_C_calc)
+
+# Soma Complexa Direta para o Total
+S_complex_total = (V_A_calc * I_A_calc.conjugate()) + \
+                  (V_B_calc * I_B_calc.conjugate()) + \
+                  (V_C_calc * I_C_calc.conjugate())
+
+P_total = S_complex_total.real
+Q_total = S_complex_total.imag
+S_total_mag = abs(S_complex_total)
+
+# FP Total
+if S_total_mag == 0:
+    FP_total = 0
+else:
+    FP_total = P_total / S_total_mag
+    
+tipo_total = "Ind" if Q_total >= 0 else "Cap"
+
+print(f"Total Trifásico:")
+print(f"S: {S_total_mag:.2f} VA" )
+print(f"P: {P_total:.2f} W") 
+print(f"Q: {Q_total:.2f} VAr ({tipo_total})")
+print(f"FP: {FP_total:.3f}")
